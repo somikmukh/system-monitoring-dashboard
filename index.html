@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Python System Monitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h2>Live Metrics</h2>
+  <p>CPU: <span id="cpu"></span>%</p>
+  <p>Memory: <span id="memory"></span>%</p>
+  <p>Disk: <span id="disk"></span>%</p>
+
+  <canvas id="combinedChart" width="600" height="300"></canvas> 
+
+<script>
+  const socket = new WebSocket("ws://localhost:8000/ws");
+
+  const ctx = document.getElementById("combinedChart").getContext("2d");
+  const combinedChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: "CPU Usage",
+          data: [],
+          borderColor: "red",
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: "Memory Usage",
+          data: [],
+          borderColor: "blue",
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: "Disk Usage",
+          data: [],
+          borderColor: "green",
+          fill: false,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          title: {
+            display: true,
+            text: 'Usage (%)'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Time'
+          }
+        }
+      }
+    }
+  });
+
+  socket.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    const now = new Date().toLocaleTimeString();
+
+    document.getElementById("cpu").textContent = data.cpu;
+    document.getElementById("memory").textContent = data.memory;
+    document.getElementById("disk").textContent = data.disk;
+
+    const maxPoints = 10;
+
+    combinedChart.data.labels.push(now);
+    combinedChart.data.datasets[0].data.push(data.cpu);
+    combinedChart.data.datasets[1].data.push(data.memory);
+    combinedChart.data.datasets[2].data.push(data.disk);
+
+    if (combinedChart.data.labels.length > maxPoints) {
+      combinedChart.data.labels.shift();
+      combinedChart.data.datasets.forEach(ds => ds.data.shift());
+    }
+
+    combinedChart.update();
+  };
+</script>
+</body>
+</html>
